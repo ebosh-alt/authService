@@ -1,0 +1,141 @@
+definitions:
+  auth_protov1.CurrencyAddRequest:
+    properties:
+      currencyPair:
+        type: string
+    type: object
+  auth_protov1.CurrencyAddResponse:
+    properties:
+      status:
+        type: string
+    type: object
+  auth_protov1.CurrencyPriceRequest:
+    properties:
+      currencyPair:
+        type: string
+      timestamp:
+        type: integer
+    type: object
+  auth_protov1.CurrencyPriceResponse:
+    properties:
+      price:
+        type: string
+    type: object
+  auth_protov1.CurrencyRemoveRequest:
+    properties:
+      currencyPair:
+        type: string
+    type: object
+  auth_protov1.CurrencyRemoveResponse:
+    properties:
+      status:
+        type: string
+    type: object
+  server.errorResponse:
+    properties:
+      message:
+        type: string
+    type: object
+info:
+  contact: {}
+paths:
+  /currency/add:
+    post:
+      consumes:
+        - application/json
+      description: add currency pair
+      operationId: add-currency
+      parameters:
+        - description: 'CurrencyAddRequest: currencypair'
+          in: body
+          name: CurrencyAddRequest
+          required: true
+          schema:
+            $ref: '#/definitions/auth_protov1.CurrencyAddRequest'
+      produces:
+        - application/json
+      responses:
+        "200":
+          description: Success
+          schema:
+            $ref: '#/definitions/auth_protov1.CurrencyAddResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/server.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.errorResponse'
+        default:
+          description: ""
+          schema:
+            $ref: '#/definitions/server.errorResponse'
+      summary: Add Currency
+  /currency/price:
+    post:
+      consumes:
+        - application/json
+      description: get currency price at specific time
+      operationId: get-currency-price
+      parameters:
+        - description: 'CurrencyPriceRequest: currencyPair, timestamp'
+          in: body
+          name: CurrencyPriceRequest
+          required: true
+          schema:
+            $ref: '#/definitions/auth_protov1.CurrencyPriceRequest'
+      produces:
+        - application/json
+      responses:
+        "200":
+          description: Success
+          schema:
+            $ref: '#/definitions/auth_protov1.CurrencyPriceResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/server.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.errorResponse'
+        default:
+          description: ""
+          schema:
+            $ref: '#/definitions/server.errorResponse'
+      summary: Currency Price
+  /currency/remove:
+    post:
+      consumes:
+        - application/json
+      description: remove currency pair
+      operationId: remove-currency
+      parameters:
+        - description: 'CurrencyRemoveRequest: currencypair'
+          in: body
+          name: CurrencyRemoveRequest
+          required: true
+          schema:
+            $ref: '#/definitions/auth_protov1.CurrencyRemoveRequest'
+      produces:
+        - application/json
+      responses:
+        "200":
+          description: Success
+          schema:
+            $ref: '#/definitions/auth_protov1.CurrencyRemoveResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/server.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.errorResponse'
+        default:
+          description: ""
+          schema:
+            $ref: '#/definitions/server.errorResponse'
+      summary: Remove Currency
+swagger: "2.0"

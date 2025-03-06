@@ -1,0 +1,14 @@
+service_name: "authService"
+
+Postgres:
+  port: "5432"
+  host: "localhost"
+  user: "postgres"
+  password: "n164838i"
+  DBName: "users"
+  sslMode: "allow"
+
+Server: #http
+  host: "0.0.0.0"
+#  gRPCPort: "3000"
+  port: "8080"

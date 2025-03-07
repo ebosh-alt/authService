@@ -32,6 +32,8 @@ func (r *Repository) OnStart(_ context.Context) error {
 		r.cfg.Postgres.Password,
 		r.cfg.Postgres.DBName,
 		r.cfg.Postgres.SSLMode)
+
+	r.log.Info(connectionUrl)
 	pool, err := pgxpool.Connect(r.ctx, connectionUrl)
 	if err != nil {
 		return err

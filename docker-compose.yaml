@@ -1,0 +1,25 @@
+services:
+  auth_db:
+    build:
+      context: ./pkg/db_container
+    container_name: auth_db
+    env_file:
+      - .env
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "6132:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ./pkg/db_container/init.sql:/docker-entrypoint-initdb.d/init.sql
+    restart: always
+    networks:
+      - my_net
+
+volumes:
+  pg_data:
+
+networks:
+  my_net:

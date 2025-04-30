@@ -1,7 +1,7 @@
 package main
 
 import (
-	"authSerivce/internal/app"
+	"authService/internal/app"
 )
 
 func main() {

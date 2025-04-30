@@ -1,13 +1,16 @@
 package server
 
 import (
-	"authSerivce/config"
-	"authSerivce/internal/delivery/http/middleware"
-	"authSerivce/internal/usecase"
+	"authService/internal/config"
+	"authService/internal/delivery/http/middleware"
+	"authService/internal/usecase"
+	protos "authService/pkg/proto/gen/go"
 	"context"
+	"fmt"
 	_ "fmt"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
+	"net/http"
 	_ "net/http"
 )
 
@@ -45,4 +48,21 @@ func (s *Server) OnStop(_ context.Context) error {
 	s.logger.Debug("stop gRPS")
 	//s.serv.GracefulStop()
 	return nil
+}
+
+func (s *Server) AuthLogin(ctx *gin.Context) {
+	request := protos.GetAuthLoginRequest{}
+
+	err := ctx.ShouldBindJSON(&request)
+	if err != nil {
+		ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"message": fmt.Sprintf("failed to unmarshar request: %v", err)})
+		return
+	}
+	status, er := s.Usecase.AuthLogin(ctx, &request)
+	if er != nil {
+		ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"message": fmt.Sprintf("failed to create course: %v", err)})
+		return
+	}
+	ctx.JSON(http.StatusOK, &protos.GetAuthLoginResponse{Status: status})
+	return
 }

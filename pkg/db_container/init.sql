@@ -3,23 +3,10 @@ CREATE EXTENSION IF NOT EXISTS dblink;
 DO
 $$
     BEGIN
-        IF NOT EXISTS (SELECT FROM pg_database WHERE datname = 'auth') THEN
-            PERFORM dblink_exec('dbname=postgres user=' || current_user, 'CREATE DATABASE auth');
+        IF NOT EXISTS (SELECT FROM pg_database WHERE datname = 'db_auth') THEN
+            PERFORM dblink_exec('dbname=postgres user=' || current_user, 'CREATE DATABASE db_auth');
+            RAISE NOTICE 'Created database: %', 'db_auth';
         END IF;
-    END
+    END;
 $$;
-\c auth
-DO
-$$
-    BEGIN
-        CREATE TABLE IF NOT EXISTS users
-        (
-            id                  serial PRIMARY KEY
-        );
-
-        RAISE NOTICE 'Таблицы успешно созданы.';
-    EXCEPTION
-        WHEN OTHERS THEN
-            RAISE EXCEPTION 'Ошибка при создании таблиц: %', SQLERRM;
-    END
-$$;
+\c db_auth

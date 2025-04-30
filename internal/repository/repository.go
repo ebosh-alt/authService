@@ -1,7 +1,8 @@
 package repository
 
 import (
-	"authSerivce/internal/repository/postgres"
+	"authService/internal/repository/postgres"
+	"authService/internal/repository/redis"
 
 	"go.uber.org/fx"
 	"go.uber.org/zap"
@@ -11,12 +12,17 @@ func New() fx.Option {
 	return fx.Module("repository",
 		fx.Provide(
 			postgres.NewRepository,
+			redis.NewRepository,
 		),
 		fx.Invoke(
-			func(lc fx.Lifecycle, a *postgres.Repository) {
+			func(lc fx.Lifecycle, pg *postgres.Repository, rds *redis.Repository) {
 				lc.Append(fx.Hook{
-					OnStart: a.OnStart,
-					OnStop:  a.OnStop,
+					OnStart: pg.OnStart,
+					OnStop:  pg.OnStop,
+				})
+				lc.Append(fx.Hook{
+					OnStart: rds.OnStart,
+					OnStop:  rds.OnStop,
 				})
 			},
 		),

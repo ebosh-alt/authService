@@ -1,0 +1,39 @@
+syntax = "proto3";
+
+package auth_proto.v1;
+option go_package = "/";
+
+service auth{
+  rpc AuthLogin(GetAuthLoginRequest) returns (GetAuthLoginResponse) {}
+  rpc AuthVerifyCode(GetAuthVerifyCodeRequest) returns (GetAuthVerifyCodeResponse) {}
+  rpc AuthRefresh(GetAuthRefreshRequest) returns (GetAuthRefreshResponse) {}
+}
+
+message GetAuthLoginRequest{
+  string Code = 1;
+  int64 TelegramId = 2;
+  string FirstName = 3;
+}
+message GetAuthLoginResponse{
+  bool Status = 1;
+}
+
+
+message GetAuthVerifyCodeRequest{
+  string Code = 1;
+}
+
+message GetAuthVerifyCodeResponse{
+  bool Status = 1;
+  string AccessToken = 2;
+  string RefreshToken = 3;
+}
+
+
+message GetAuthRefreshRequest{
+  string RefreshToken = 1;
+}
+message GetAuthRefreshResponse{
+  string RefreshToken = 1;
+  string AccessToken = 2;
+}

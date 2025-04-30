@@ -3,6 +3,8 @@ package config
 type Config struct {
 	Server   ServerConfig   `yaml:"Server"`
 	Postgres PostgresConfig `yaml:"Postgres"`
+	Redis    RedisConfig    `yaml:"Redis"`
+	Secret   string         `yaml:"Secret"`
 }
 
 type PostgresConfig struct {
@@ -12,10 +14,18 @@ type PostgresConfig struct {
 	Password string `yaml:"password"`
 	DBName   string `yaml:"DBName"`
 	SSLMode  string `yaml:"sslMode"`
+	DSN      string `yaml:"-"` // "-" означает, что это поле не будет загружаться из YAML
 }
 
 type ServerConfig struct {
 	AppVersion string `yaml:"appVersion"`
 	Host       string `yaml:"host" validate:"required"`
 	Port       string `yaml:"port" validate:"required"`
+}
+
+type RedisConfig struct {
+	Host     string `yaml:"host" validate:"required"`
+	Port     string `yaml:"port" validate:"required"`
+	Password string `yaml:"password" validate:"required"`
+	DB       int    `yaml:"db" validate:"required"`
 }

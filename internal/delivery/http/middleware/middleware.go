@@ -1,8 +1,8 @@
 package middleware
 
 import (
-	"authSerivce/config"
-	"authSerivce/internal/repository/postgres"
+	"authService/internal/config"
+	"authService/internal/repository/postgres"
 	"go.uber.org/zap"
 )
 

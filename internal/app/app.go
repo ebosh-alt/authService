@@ -1,11 +1,11 @@
 package app
 
 import (
-	"authSerivce/config"
-	"authSerivce/internal/delivery/http/middleware"
-	"authSerivce/internal/delivery/http/server"
-	"authSerivce/internal/repository"
-	"authSerivce/internal/usecase"
+	"authService/internal/config"
+	"authService/internal/delivery/http/middleware"
+	"authService/internal/delivery/http/server"
+	"authService/internal/repository"
+	"authService/internal/usecase"
 	"context"
 
 	"go.uber.org/fx"

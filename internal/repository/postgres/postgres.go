@@ -1,7 +1,8 @@
 package postgres
 
 import (
-	"authSerivce/config"
+	"authService/internal/config"
+	"authService/internal/entities"
 	"context"
 	"fmt"
 
@@ -44,5 +45,74 @@ func (r *Repository) OnStart(_ context.Context) error {
 
 func (r *Repository) OnStop(_ context.Context) error {
 	r.DB.Close()
+	return nil
+}
+
+const getUserByTelegramId = `
+	SELECT ID FROM users WHERE telegram_id = $1
+`
+
+func (r *Repository) GetUserByTelegramId(ctx context.Context, user *entities.User) (int32, error) {
+	var userId int32
+	err := r.DB.QueryRow(ctx, getUserByTelegramId, user.TelegramID).Scan(&userId)
+	if err != nil {
+		r.log.Error("fail to get user_id by telegram_id", zap.Error(err))
+		return 0, err
+	}
+	return userId, nil
+}
+
+const getUserById = `
+	SELECT id, telegram_id, first_name, access_token, refresh_token, created_at, updated_at
+	               FROM users WHERE id = $1
+`
+
+func (r *Repository) GetUserById(ctx context.Context, id int32) (*entities.User, error) {
+	var userDTO entities.UserDTO
+	err := r.DB.QueryRow(ctx, getUserById, id).Scan(
+		&userDTO.ID,
+		&userDTO.TelegramID,
+		&userDTO.FirstName,
+		&userDTO.AccessToken,
+		&userDTO.RefreshToken,
+		&userDTO.CreateAt,
+		&userDTO.UpdatedAt,
+	)
+	if err != nil {
+		r.log.Error("fail to get user by id", zap.Error(err))
+		return nil, err
+	}
+	return userDTO.FromDTOConvert(), nil
+}
+
+const createUser = `
+	INSERT INTO users (telegram_id, first_name) values ($1, $2) returning id
+`
+
+func (r *Repository) CreateUser(ctx context.Context, user *entities.User) (*entities.User, error) {
+	userDTO := user.ConvertToDTO()
+
+	er := r.DB.QueryRow(ctx, createUser, userDTO.TelegramID, userDTO.FirstName).Scan(
+		&userDTO.ID,
+	)
+	if er != nil {
+		r.log.Error("fail to create user", zap.Error(er))
+		return nil, er
+	}
+	return userDTO.FromDTOConvert(), nil
+
+}
+
+const updateTokens = `
+	UPDATE users SET access_token = $1, refresh_token = $2 WHERE id = $3
+`
+
+func (r *Repository) UpdateTokens(ctx context.Context, user *entities.User) error {
+	userDTO := user.ConvertToDTO()
+	_, er := r.DB.Exec(ctx, updateTokens, userDTO.AccessToken, userDTO.RefreshToken, userDTO.ID)
+	if er != nil {
+		r.log.Error("failed update tokens user", zap.Error(er))
+		return er
+	}
 	return nil
 }

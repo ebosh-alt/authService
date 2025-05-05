@@ -4,6 +4,7 @@ import (
 	"authService/internal/config"
 	"authService/internal/entities"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/redis/go-redis/v9"
@@ -54,26 +55,41 @@ func (r *Repository) OnStop(_ context.Context) error {
 
 func (r *Repository) SaveCode(ctx context.Context, code string, user *entities.User) error {
 	key := fmt.Sprintf("auth_code:%s", code)
-	err := r.Client.Set(ctx, key, user.TelegramID, 60*time.Minute).Err()
+
+	userData, err := json.Marshal(user)
+	if err != nil {
+		r.log.Error("failed to marshal user data", zap.Error(err))
+		return err
+	}
+
+	err = r.Client.Set(ctx, key, userData, 60*time.Minute).Err()
 	if err != nil {
 		r.log.Error("failed to save code in Redis", zap.Error(err))
 		return err
 	}
+
 	r.log.Info("saved code in Redis", zap.String("code", code), zap.Int64("telegramID", user.TelegramID))
 	return nil
 }
 
-func (r *Repository) VerifyCode(ctx context.Context, code string) (int64, error) {
+func (r *Repository) VerifyCode(ctx context.Context, code string) (*entities.User, error) {
 	key := fmt.Sprintf("auth_code:%s", code)
-	storedTelegramID, err := r.Client.Get(ctx, key).Int64()
+
+	data, err := r.Client.Get(ctx, key).Bytes()
 	if err != nil {
 		if errors.Is(err, redis.Nil) {
 			r.log.Warn("code not found in Redis", zap.String("code", code))
-			return 0, nil
+			return nil, nil
 		}
 		r.log.Error("failed to get code from Redis", zap.Error(err))
-		return 0, err
+		return nil, err
 	}
 
-	return storedTelegramID, nil
+	var user entities.User
+	if err := json.Unmarshal(data, &user); err != nil {
+		r.log.Error("failed to unmarshal user data", zap.Error(err))
+		return nil, err
+	}
+
+	return &user, nil
 }

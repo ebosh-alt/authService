@@ -16,13 +16,13 @@ func NewNullString(s string) *sql.NullString {
 }
 
 type User struct {
-	ID           int32
-	TelegramID   int64
-	FirstName    string
-	AccessToken  string
-	RefreshToken string
-	CreateAt     string
-	UpdatedAt    string
+	ID           int32  `json:"id" db:"id"`
+	TelegramID   int64  `json:"telegram_id" db:"telegram_id"`
+	FirstName    string `json:"first_name" db:"first_name"`
+	AccessToken  string `json:"access_token" db:"access_token"`
+	RefreshToken string `json:"refresh_token" db:"refresh_token"`
+	CreateAt     string `json:"create_at" db:"create_at"`
+	UpdatedAt    string `json:"updated_at" db:"updated_at"`
 }
 
 type UserDTO struct {

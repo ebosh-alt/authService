@@ -15,7 +15,7 @@ import (
 )
 
 type Server struct {
-	logger     *zap.Logger
+	log        *zap.Logger
 	cfg        *config.Config
 	serv       *gin.Engine
 	Usecase    *usecase.Usecase
@@ -24,7 +24,7 @@ type Server struct {
 
 func NewServer(logger *zap.Logger, cfg *config.Config, uc *usecase.Usecase, middleware *middleware.Middleware) (*Server, error) {
 	return &Server{
-		logger:     logger,
+		log:        logger,
 		cfg:        cfg,
 		serv:       gin.Default(),
 		Usecase:    uc,
@@ -35,9 +35,9 @@ func NewServer(logger *zap.Logger, cfg *config.Config, uc *usecase.Usecase, midd
 func (s *Server) OnStart(_ context.Context) error {
 	s.createController()
 	go func() {
-		s.logger.Debug("serv started")
+		s.log.Debug("serv started")
 		if err := s.serv.Run(s.cfg.Server.Host + ":" + s.cfg.Server.Port); err != nil {
-			s.logger.Error("failed to serve: " + err.Error())
+			s.log.Error("failed to serve: " + err.Error())
 		}
 		return
 	}()
@@ -45,24 +45,78 @@ func (s *Server) OnStart(_ context.Context) error {
 }
 
 func (s *Server) OnStop(_ context.Context) error {
-	s.logger.Debug("stop gRPS")
+	s.log.Debug("stop gRPS")
 	//s.serv.GracefulStop()
 	return nil
 }
 
 func (s *Server) AuthLogin(ctx *gin.Context) {
-	request := protos.GetAuthLoginRequest{}
+	var req protos.PostAuthLoginRequest
 
-	err := ctx.ShouldBindJSON(&request)
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		s.log.Error("failed to bind AuthLogin request", zap.Error(err))
+		ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+			"message": fmt.Sprintf("invalid request payload: %v", err),
+		})
+		return
+	}
+
+	status, err := s.Usecase.AuthLogin(ctx, &req)
 	if err != nil {
-		ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"message": fmt.Sprintf("failed to unmarshar request: %v", err)})
+		s.log.Error("usecase AuthLogin failed", zap.Error(err))
+		ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
+			"message": "internal server error",
+		})
 		return
 	}
-	status, er := s.Usecase.AuthLogin(ctx, &request)
-	if er != nil {
-		ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"message": fmt.Sprintf("failed to create course: %v", err)})
+
+	ctx.JSON(http.StatusOK, &protos.PostAuthLoginResponse{Status: status})
+}
+
+func (s *Server) AuthVerifyCode(ctx *gin.Context) {
+	var req protos.PostAuthVerifyCodeRequest
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		s.log.Error("failed to bind AuthLogin request", zap.Error(err))
+		ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+			"message": fmt.Sprintf("invalid request payload: %v", err),
+		})
 		return
 	}
-	ctx.JSON(http.StatusOK, &protos.GetAuthLoginResponse{Status: status})
-	return
+	user, err := s.Usecase.AuthVerifyCode(ctx, &req)
+	if err != nil {
+		s.log.Error("usecase AuthVerifyCode failed", zap.Error(err))
+		ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
+			"message": "internal server error",
+		})
+		return
+
+	}
+	ctx.JSON(http.StatusOK, &protos.PostAuthVerifyCodeResponse{
+		Status:       true,
+		AccessToken:  user.AccessToken,
+		RefreshToken: user.RefreshToken,
+	})
+}
+
+func (s *Server) AuthRefresh(ctx *gin.Context) {
+	var req protos.PostAuthRefreshRequest
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		s.log.Error("failed to bind AuthRefresh request", zap.Error(err))
+		ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+			"message": fmt.Sprintf("invalid request payload: %v", err),
+		})
+		return
+	}
+	user, err := s.Usecase.AuthRefresh(ctx, &req)
+	if err != nil {
+		s.log.Error("usecase AuthRefresh failed", zap.Error(err))
+		ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
+			"message": "internal server error",
+		})
+		return
+	}
+	ctx.JSON(http.StatusOK, &protos.PostAuthRefreshResponse{
+		AccessToken:  user.AccessToken,
+		RefreshToken: user.RefreshToken,
+	})
 }

@@ -49,17 +49,25 @@ func (r *Repository) OnStop(_ context.Context) error {
 }
 
 const getUserByTelegramId = `
-	SELECT ID FROM users WHERE telegram_id = $1
+	SELECT id, telegram_id, first_name, access_token, refresh_token, created_at, updated_at FROM users WHERE telegram_id = $1
 `
 
-func (r *Repository) GetUserByTelegramId(ctx context.Context, user *entities.User) (int32, error) {
-	var userId int32
-	err := r.DB.QueryRow(ctx, getUserByTelegramId, user.TelegramID).Scan(&userId)
+func (r *Repository) GetUserByTelegramId(ctx context.Context, user *entities.User) (*entities.User, error) {
+	userDTO := user.ConvertToDTO()
+	err := r.DB.QueryRow(ctx, getUserById, user.TelegramID).Scan(
+		&userDTO.ID,
+		&userDTO.TelegramID,
+		&userDTO.FirstName,
+		&userDTO.AccessToken,
+		&userDTO.RefreshToken,
+		&userDTO.CreateAt,
+		&userDTO.UpdatedAt,
+	)
 	if err != nil {
-		r.log.Error("fail to get user_id by telegram_id", zap.Error(err))
-		return 0, err
+		r.log.Error("fail to get user by telegram id", zap.Error(err))
+		return nil, err
 	}
-	return userId, nil
+	return userDTO.FromDTOConvert(), nil
 }
 
 const getUserById = `
@@ -80,6 +88,28 @@ func (r *Repository) GetUserById(ctx context.Context, id int32) (*entities.User,
 	)
 	if err != nil {
 		r.log.Error("fail to get user by id", zap.Error(err))
+		return nil, err
+	}
+	return userDTO.FromDTOConvert(), nil
+}
+
+const getUserByRefreshToken = `
+	SELECT id, telegram_id, first_name, access_token, refresh_token, created_at, updated_at FROM users WHERE refresh_token = $1
+`
+
+func (r *Repository) GetUserByRefreshToken(ctx context.Context, refreshToken string) (*entities.User, error) {
+	var userDTO entities.UserDTO
+	err := r.DB.QueryRow(ctx, getUserById, refreshToken).Scan(
+		&userDTO.ID,
+		&userDTO.TelegramID,
+		&userDTO.FirstName,
+		&userDTO.AccessToken,
+		&userDTO.RefreshToken,
+		&userDTO.CreateAt,
+		&userDTO.UpdatedAt,
+	)
+	if err != nil {
+		r.log.Error("fail to get user_id by refresh_token", zap.Error(err))
 		return nil, err
 	}
 	return userDTO.FromDTOConvert(), nil

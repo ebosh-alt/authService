@@ -28,9 +28,9 @@ const (
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type AuthClient interface {
-	AuthLogin(ctx context.Context, in *GetAuthLoginRequest, opts ...grpc.CallOption) (*GetAuthLoginResponse, error)
-	AuthVerifyCode(ctx context.Context, in *GetAuthVerifyCodeRequest, opts ...grpc.CallOption) (*GetAuthVerifyCodeResponse, error)
-	AuthRefresh(ctx context.Context, in *GetAuthRefreshRequest, opts ...grpc.CallOption) (*GetAuthRefreshResponse, error)
+	AuthLogin(ctx context.Context, in *PostAuthLoginRequest, opts ...grpc.CallOption) (*PostAuthLoginResponse, error)
+	AuthVerifyCode(ctx context.Context, in *PostAuthVerifyCodeRequest, opts ...grpc.CallOption) (*PostAuthVerifyCodeResponse, error)
+	AuthRefresh(ctx context.Context, in *PostAuthRefreshRequest, opts ...grpc.CallOption) (*PostAuthRefreshResponse, error)
 }
 
 type authClient struct {
@@ -41,9 +41,9 @@ func NewAuthClient(cc grpc.ClientConnInterface) AuthClient {
 	return &authClient{cc}
 }
 
-func (c *authClient) AuthLogin(ctx context.Context, in *GetAuthLoginRequest, opts ...grpc.CallOption) (*GetAuthLoginResponse, error) {
+func (c *authClient) AuthLogin(ctx context.Context, in *PostAuthLoginRequest, opts ...grpc.CallOption) (*PostAuthLoginResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(GetAuthLoginResponse)
+	out := new(PostAuthLoginResponse)
 	err := c.cc.Invoke(ctx, Auth_AuthLogin_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -51,9 +51,9 @@ func (c *authClient) AuthLogin(ctx context.Context, in *GetAuthLoginRequest, opt
 	return out, nil
 }
 
-func (c *authClient) AuthVerifyCode(ctx context.Context, in *GetAuthVerifyCodeRequest, opts ...grpc.CallOption) (*GetAuthVerifyCodeResponse, error) {
+func (c *authClient) AuthVerifyCode(ctx context.Context, in *PostAuthVerifyCodeRequest, opts ...grpc.CallOption) (*PostAuthVerifyCodeResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(GetAuthVerifyCodeResponse)
+	out := new(PostAuthVerifyCodeResponse)
 	err := c.cc.Invoke(ctx, Auth_AuthVerifyCode_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -61,9 +61,9 @@ func (c *authClient) AuthVerifyCode(ctx context.Context, in *GetAuthVerifyCodeRe
 	return out, nil
 }
 
-func (c *authClient) AuthRefresh(ctx context.Context, in *GetAuthRefreshRequest, opts ...grpc.CallOption) (*GetAuthRefreshResponse, error) {
+func (c *authClient) AuthRefresh(ctx context.Context, in *PostAuthRefreshRequest, opts ...grpc.CallOption) (*PostAuthRefreshResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(GetAuthRefreshResponse)
+	out := new(PostAuthRefreshResponse)
 	err := c.cc.Invoke(ctx, Auth_AuthRefresh_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -75,9 +75,9 @@ func (c *authClient) AuthRefresh(ctx context.Context, in *GetAuthRefreshRequest,
 // All implementations must embed UnimplementedAuthServer
 // for forward compatibility.
 type AuthServer interface {
-	AuthLogin(context.Context, *GetAuthLoginRequest) (*GetAuthLoginResponse, error)
-	AuthVerifyCode(context.Context, *GetAuthVerifyCodeRequest) (*GetAuthVerifyCodeResponse, error)
-	AuthRefresh(context.Context, *GetAuthRefreshRequest) (*GetAuthRefreshResponse, error)
+	AuthLogin(context.Context, *PostAuthLoginRequest) (*PostAuthLoginResponse, error)
+	AuthVerifyCode(context.Context, *PostAuthVerifyCodeRequest) (*PostAuthVerifyCodeResponse, error)
+	AuthRefresh(context.Context, *PostAuthRefreshRequest) (*PostAuthRefreshResponse, error)
 	mustEmbedUnimplementedAuthServer()
 }
 
@@ -88,13 +88,13 @@ type AuthServer interface {
 // pointer dereference when methods are called.
 type UnimplementedAuthServer struct{}
 
-func (UnimplementedAuthServer) AuthLogin(context.Context, *GetAuthLoginRequest) (*GetAuthLoginResponse, error) {
+func (UnimplementedAuthServer) AuthLogin(context.Context, *PostAuthLoginRequest) (*PostAuthLoginResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method AuthLogin not implemented")
 }
-func (UnimplementedAuthServer) AuthVerifyCode(context.Context, *GetAuthVerifyCodeRequest) (*GetAuthVerifyCodeResponse, error) {
+func (UnimplementedAuthServer) AuthVerifyCode(context.Context, *PostAuthVerifyCodeRequest) (*PostAuthVerifyCodeResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method AuthVerifyCode not implemented")
 }
-func (UnimplementedAuthServer) AuthRefresh(context.Context, *GetAuthRefreshRequest) (*GetAuthRefreshResponse, error) {
+func (UnimplementedAuthServer) AuthRefresh(context.Context, *PostAuthRefreshRequest) (*PostAuthRefreshResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method AuthRefresh not implemented")
 }
 func (UnimplementedAuthServer) mustEmbedUnimplementedAuthServer() {}
@@ -119,7 +119,7 @@ func RegisterAuthServer(s grpc.ServiceRegistrar, srv AuthServer) {
 }
 
 func _Auth_AuthLogin_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetAuthLoginRequest)
+	in := new(PostAuthLoginRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -131,13 +131,13 @@ func _Auth_AuthLogin_Handler(srv interface{}, ctx context.Context, dec func(inte
 		FullMethod: Auth_AuthLogin_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AuthServer).AuthLogin(ctx, req.(*GetAuthLoginRequest))
+		return srv.(AuthServer).AuthLogin(ctx, req.(*PostAuthLoginRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
 func _Auth_AuthVerifyCode_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetAuthVerifyCodeRequest)
+	in := new(PostAuthVerifyCodeRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -149,13 +149,13 @@ func _Auth_AuthVerifyCode_Handler(srv interface{}, ctx context.Context, dec func
 		FullMethod: Auth_AuthVerifyCode_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AuthServer).AuthVerifyCode(ctx, req.(*GetAuthVerifyCodeRequest))
+		return srv.(AuthServer).AuthVerifyCode(ctx, req.(*PostAuthVerifyCodeRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
 func _Auth_AuthRefresh_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetAuthRefreshRequest)
+	in := new(PostAuthRefreshRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -167,7 +167,7 @@ func _Auth_AuthRefresh_Handler(srv interface{}, ctx context.Context, dec func(in
 		FullMethod: Auth_AuthRefresh_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AuthServer).AuthRefresh(ctx, req.(*GetAuthRefreshRequest))
+		return srv.(AuthServer).AuthRefresh(ctx, req.(*PostAuthRefreshRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }

@@ -10,7 +10,6 @@ import (
 	protos "authService/pkg/proto/gen/go"
 
 	"authService/internal/repository/postgres"
-	// protos "CryptoParser/pkg/proto/gen/go"
 	"github.com/golang-jwt/jwt/v5"
 	"go.uber.org/zap"
 )
@@ -47,107 +46,132 @@ func (uc *Usecase) OnStop(_ context.Context) error {
 	return nil
 }
 func (uc *Usecase) createAccessToken(user *entities.User) (string, error) {
-	token := jwt.New(jwt.SigningMethodHS256)
-	claims := token.Claims.(jwt.MapClaims)
-	claims["id"] = user.ID
-	claims["telegram_id"] = user.TelegramID
-	claims["first_name"] = user.FirstName
-	claims["exp"] = time.Now().Add(time.Hour * 24 * 365).Unix()
-
-	tokenString, err := token.SignedString([]byte(uc.cfg.Secret))
-	if err != nil {
-		return "", err
+	claims := jwt.MapClaims{
+		"id":          user.ID,
+		"telegram_id": user.TelegramID,
+		"first_name":  user.FirstName,
+		"exp":         time.Now().Add(365 * 24 * time.Hour).Unix(),
 	}
-
-	return tokenString, nil
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString([]byte(uc.cfg.Secret))
 }
 
 func (uc *Usecase) createRefreshToken(userID int32) (string, error) {
-	Claims := jwt.MapClaims{
+	claims := jwt.MapClaims{
 		"userID": userID,
-		"exp":    time.Now().Add(time.Hour * 24 * 365 * 10).Unix(),
+		"exp":    time.Now().Add(10 * 365 * 24 * time.Hour).Unix(),
 	}
-
-	refreshToken := jwt.NewWithClaims(jwt.SigningMethodHS256, Claims)
-	refreshToken.Header["kid"] = "signing"
-
-	signedString, err := refreshToken.SignedString([]byte(uc.cfg.Secret))
-	if err != nil {
-		return "", err
-	}
-
-	return signedString, nil
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	token.Header["kid"] = "signing"
+	return token.SignedString([]byte(uc.cfg.Secret))
 }
 
-func (uc *Usecase) AuthLogin(ctx context.Context, proto *protos.GetAuthLoginRequest) (bool, error) {
-	user := &entities.User{TelegramID: proto.TelegramId, FirstName: proto.FirstName}
-	er := uc.Redis.SaveCode(ctx, proto.Code, user)
-	if er != nil {
-		uc.log.Error("Error saving code to Redis storage:", zap.Error(er))
-		return false, er
+func (uc *Usecase) isAccessTokenValid(accessToken string) bool {
+	parser := &jwt.Parser{}
+	token, _, err := parser.ParseUnverified(accessToken, jwt.MapClaims{})
+	if err != nil {
+		uc.log.Error("failed to parse token", zap.Error(err))
+		return false
 	}
-	userId, er := uc.Postgres.GetUserByTelegramId(ctx, user)
-	if er != nil {
-		uc.log.Error("Error get user by telegram_id:", zap.Error(er))
-		return false, er
+
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		uc.log.Error("failed to assert token claims")
+		return false
 	}
-	if userId == 0 {
-		user, er = uc.Postgres.CreateUser(ctx, user)
-	} else {
-		user, er = uc.Postgres.GetUserById(ctx, userId)
-		if er != nil {
-			uc.log.Error("Error get user by user_id:", zap.Error(er))
-			return false, er
+
+	expFloat, ok := claims["exp"].(float64)
+	if !ok {
+		uc.log.Error("exp not found or invalid in token")
+		return false
+	}
+
+	return time.Now().Before(time.Unix(int64(expFloat), 0))
+}
+
+func (uc *Usecase) AuthLogin(ctx context.Context, req *protos.PostAuthLoginRequest) (bool, error) {
+	user := &entities.User{TelegramID: req.TelegramId, FirstName: req.FirstName}
+
+	if err := uc.Redis.SaveCode(ctx, req.Code, user); err != nil {
+		uc.log.Error("failed to save code in Redis", zap.Error(err))
+		return false, err
+	}
+
+	dbUser, err := uc.Postgres.GetUserByTelegramId(ctx, user)
+	if err != nil {
+		uc.log.Error("failed to get user by telegram_id", zap.Error(err))
+	}
+
+	// Create user and tokens only if user doesn't exist
+	if dbUser == nil {
+		dbUser, err = uc.Postgres.CreateUser(ctx, user)
+		if err != nil {
+			uc.log.Error("failed to create user", zap.Error(err))
+			return false, err
+		}
+
+		if err := uc.generateAndSaveTokens(ctx, dbUser); err != nil {
+			return false, err
 		}
 	}
-	accessToken, er := uc.createAccessToken(user)
-	if er != nil {
-		uc.log.Error("Error create access token", zap.Error(er))
-		return false, er
-	}
-	refreshToken, er := uc.createRefreshToken(user.ID)
-	if er != nil {
-		uc.log.Error("Error create refresh token", zap.Error(er))
-		return false, er
-	}
-	user.RefreshToken = refreshToken
-	user.AccessToken = accessToken
-	er = uc.Postgres.UpdateTokens(ctx, user)
-	if er != nil {
-		uc.log.Error("Error update users tokens", zap.Error(er))
-		return false, er
-	}
+
 	return true, nil
 }
 
-//func (uc *Usecase) AuthVerifyCode(ctx context.Context, proto *protos.GetAuthVerifyCodeRequest) (*entities.User, error) {
-//	telegramId, er := uc.Redis.VerifyCode(proto.Code)
-//	if er != nil {
-//		uc.log.Error("failed to verify user by code", zap.Error(er))
-//	}
-//
-//}
+func (uc *Usecase) AuthVerifyCode(ctx context.Context, req *protos.PostAuthVerifyCodeRequest) (*entities.User, error) {
+	userFromRedis, err := uc.Redis.VerifyCode(ctx, req.Code)
+	if err != nil {
+		uc.log.Error("failed to get user from Redis", zap.Error(err))
+		return nil, err
+	}
 
-//func (uc *Usecase) GetUserByJWTToken(ctx context.Context, userProto *protos.GetAuthRefreshRequest, JWTToken string) (*entities.User, error) {
-//	//func (uc *Usecase) GetCourse(ctx context.Context, request *protos.GetCourseRequest, JWTToken string) (*entities.User, error) {
-//	user, err := uc.Repo.GetUserByJWTToken(ctx, &entities.User{
-//		RefreshToken: userProto.RefreshToken,
-//	})
-//	if err != nil {
-//		uc.log.Error("Fail to get course info: ", zap.Error(err))
-//		return nil, err
-//	}
-//	return user, err
+	dbUser, err := uc.Postgres.GetUserByTelegramId(ctx, userFromRedis)
+	if err != nil {
+		uc.log.Error("failed to get user from Postgres", zap.Error(err))
+		return nil, err
+	}
 
-//return &protos.GetCourseResponse{
-//	Course: &protos.CourseCatalog{
-//		CourseID:     int64(course.ID),
-//		Title:        course.Title,
-//		Description:  course.Description,
-//		Category:     course.Category,
-//		ThumbnailUrl: course.ThumbnailUrl,
-//		Price:        int32(course.Price),
-//		IsPaid:       &(course.IsPaid),
-//	},
-//	CourseContents: []*protos.CourseContent{},
-//}, nil
+	if dbUser.TelegramID != userFromRedis.TelegramID {
+		uc.log.Error("telegram_id mismatch between Redis and Postgres")
+		return nil, err
+	}
+
+	return dbUser, nil
+}
+
+func (uc *Usecase) AuthRefresh(ctx context.Context, req *protos.PostAuthRefreshRequest) (*entities.User, error) {
+	user, err := uc.Postgres.GetUserByRefreshToken(ctx, req.RefreshToken)
+	if err != nil {
+		uc.log.Error("failed to get user by refresh token", zap.Error(err))
+		return nil, err
+	}
+
+	if err := uc.generateAndSaveTokens(ctx, user); err != nil {
+		return nil, err
+	}
+
+	return user, nil
+}
+
+func (uc *Usecase) generateAndSaveTokens(ctx context.Context, user *entities.User) error {
+	accessToken, err := uc.createAccessToken(user)
+	if err != nil {
+		uc.log.Error("failed to create access token", zap.Error(err))
+		return err
+	}
+
+	refreshToken, err := uc.createRefreshToken(user.ID)
+	if err != nil {
+		uc.log.Error("failed to create refresh token", zap.Error(err))
+		return err
+	}
+
+	user.AccessToken = accessToken
+	user.RefreshToken = refreshToken
+
+	if err := uc.Postgres.UpdateTokens(ctx, user); err != nil {
+		uc.log.Error("failed to update tokens", zap.Error(err))
+		return err
+	}
+	return nil
+}
